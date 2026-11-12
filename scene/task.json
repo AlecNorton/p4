@@ -1,0 +1,32 @@
+{
+  "_comment": "Take off at 'start', on the L tape and 0.70 m above the floor, find the hole in the window panel 2.87 m ahead and go through it along its normal, and stop at 'goal', 0.5 m past it. THE PANEL HAS 4 HOLES AND ONLY ONE WILL PASS A DRONE; the others are INTENDED decoys. Start and goal are in VICON METRES. The drone starts facing +x (yaw 0 deg), towards the window. 'scene_frame' is the same start in the frame of gates.json and the ESDF, which is what SplatEnv's EnvConfig takes.",
+  "frame": "vicon_metres",
+  "course": [
+    "window"
+  ],
+  "pairs": [
+    {
+      "name": "a4_1",
+      "start": [
+        0.0,
+        0.0,
+        0.7
+      ],
+      "goal": [
+        3.368,
+        -0.168,
+        1.146
+      ],
+      "start_yaw_deg": 0.0
+    }
+  ],
+  "scene_frame": {
+    "_comment": "derived from vicon_transform.json; EnvConfig(start_position_m=..., start_yaw_rad=...)",
+    "start_position_m": [
+      0.0,
+      0.0,
+      0.7
+    ],
+    "start_yaw_rad": 0.0
+  }
+}

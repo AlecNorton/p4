@@ -1,0 +1,244 @@
+{
+  "_comment": "Levelled metric frame for a4/polycam1 and its registration SEED, from frame_a4.py: splat_frame.py --polycam's levelling (dataparser frame, floor plane onto +z, floor at z = 0), seeded from the teal anchor cards seen from above instead of from pole tops, which A4 has only two of. The seed says where to look for the anchors; it is NOT the registration.",
+  "capture": "captures/a4/polycam1/nerfstudio_dataset_all",
+  "run": "captures/a4/polycam1/training_all_run",
+  "splat": "captures/a4/polycam1/preclean/splat_preclean.ply",
+  "scale": {
+    "source": "dataparser",
+    "metres_per_splat_unit": 3.848169,
+    "metres_per_splat_unit_initial": 3.848169
+  },
+  "cameras": {
+    "n": 609,
+    "median_height_m": 1.2256,
+    "height_p5_p95_m": [
+      0.3539,
+      1.809
+    ]
+  },
+  "level": {
+    "rows": [
+      [
+        0.99999892,
+        -1.54e-06,
+        0.00147232
+      ],
+      [
+        -1.54e-06,
+        0.99999783,
+        0.00208563
+      ],
+      [
+        -0.00147232,
+        -0.00208563,
+        0.99999674
+      ]
+    ],
+    "source": "floor plane",
+    "floor_residual_tilt_deg": 0.0,
+    "floor_tilt_corrected_deg": 0.1463,
+    "floor_offset_units": -0.28417071,
+    "floor_inliers": 304166,
+    "floor_rms_mm": 12.35,
+    "floor_surface_splats": 756887,
+    "floor_peak_count": 62147
+  },
+  "teal_blobs_splat_m": [
+    [
+      3.0275,
+      -1.8134,
+      0.0
+    ],
+    [
+      1.0624,
+      -1.8078,
+      0.0
+    ],
+    [
+      2.0471,
+      -1.7878,
+      0.0
+    ],
+    [
+      0.086,
+      -1.7482,
+      0.0
+    ],
+    [
+      -2.2829,
+      -1.7448,
+      0.0
+    ],
+    [
+      -2.8767,
+      -1.6856,
+      0.0
+    ],
+    [
+      2.8881,
+      -1.5789,
+      0.0
+    ],
+    [
+      -2.2896,
+      -1.5348,
+      0.0
+    ],
+    [
+      -0.075,
+      -1.443,
+      0.0
+    ],
+    [
+      -2.2885,
+      -1.411,
+      0.0
+    ],
+    [
+      -2.2753,
+      -1.2527,
+      0.0
+    ],
+    [
+      -2.6319,
+      -1.2475,
+      0.0
+    ],
+    [
+      -2.7796,
+      -1.1182,
+      0.0
+    ],
+    [
+      -2.7808,
+      -1.0173,
+      0.0
+    ],
+    [
+      -2.265,
+      -1.0017,
+      0.0
+    ],
+    [
+      -2.7753,
+      -0.9198,
+      0.0
+    ],
+    [
+      -2.2646,
+      -0.8798,
+      0.0
+    ],
+    [
+      -2.7703,
+      -0.7548,
+      0.0
+    ],
+    [
+      -2.7579,
+      -0.5898,
+      0.0
+    ],
+    [
+      -2.2426,
+      -0.5268,
+      0.0
+    ],
+    [
+      -2.208,
+      -0.0345,
+      0.0
+    ],
+    [
+      -2.7696,
+      0.2452,
+      0.0
+    ],
+    [
+      -2.2114,
+      0.3047,
+      0.0
+    ],
+    [
+      -2.1965,
+      0.4548,
+      0.0
+    ],
+    [
+      -2.2073,
+      0.5457,
+      0.0
+    ],
+    [
+      -2.201,
+      0.6673,
+      0.0
+    ],
+    [
+      -2.1749,
+      0.8749,
+      0.0
+    ],
+    [
+      -2.1596,
+      1.0716,
+      0.0
+    ],
+    [
+      0.0804,
+      1.3232,
+      0.0
+    ],
+    [
+      -3.2579,
+      1.3468,
+      0.0
+    ],
+    [
+      -2.1621,
+      1.373,
+      0.0
+    ],
+    [
+      -2.5405,
+      1.4974,
+      0.0
+    ]
+  ],
+  "seed": {
+    "scale": 1.012993,
+    "R": [
+      [
+        -0.99876426,
+        0.04969869,
+        0.0
+      ],
+      [
+        -0.04969869,
+        -0.99876426,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "t": [
+      2.617215,
+      -0.008065,
+      0.00126
+    ],
+    "_form": "vicon_m = scale * R @ splat_levelled_m + t",
+    "source": "teal anchor cards ['A2', 'A3', 'A4', 'A5', 'A6'] matched to blobs [6, 8, 11, 31, 28]",
+    "rotation": "yaw only, the frame is levelled off the floor",
+    "residual_xy_mm": [
+      13.7,
+      4.3,
+      19.4,
+      31.5,
+      25.0
+    ],
+    "yaw_deg": -177.151
+  }
+}

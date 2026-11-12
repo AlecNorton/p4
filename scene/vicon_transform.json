@@ -1,0 +1,43 @@
+{
+  "_comment": "Splat FILE units -> Vicon metres, as p_splat = scale * (R @ p_vicon) + t. Since 2026-10-23 this bundle is stored in the Vicon frame itself (captures/tools/level_bundle.py), so R is the identity and t is zero: scene metres ARE Vicon metres, and z is up. levelling.json holds the COLMAP-frame transform this replaced, which is what made_from describes.",
+  "made_from": [
+    "captures/a4/polycam1/registration/splat_frame.json",
+    "captures/a4/polycam1/registration/registration.json"
+  ],
+  "scale": 0.251970361235365,
+  "R": [
+    [
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "t": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "metres_per_unit": 3.9687207459527434,
+  "rms_residual_m": 0.02929681243803961,
+  "rms_residual_units": 0.0073819284130575745,
+  "n_points": 6,
+  "anchors_used": [
+    "A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5",
+    "A6"
+  ],
+  "metres_per_splat_unit": 3.968721
+}

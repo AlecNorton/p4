@@ -1,0 +1,49 @@
+{
+  "name": "a4",
+  "_comment": "PEAR netted volume, A4 course, laid out 23 Oct 2026: ONE window panel, 1.08 x 1.78 m, standing 2.86 m down the course from the L tape and facing it (heading 2.9 deg). Its hand-cut hole is 0.396 m across at its widest circle and 0.408 x 0.296 m as a rectangle, 1.14 m above the floor and 0.15 m to the side of the panel's centre line, and the panel has 3 smaller decoy holes. There is no train and test split: this one scene is used to develop in and for the demo. Polycam LiDAR capture (polycam1, all 609 keyframes, a complete export with one focal length), splatfacto 30k SEEDED from the capture's own depth maps, auto-precleaned (110 floaters). PSNR 20.68, SSIM 0.590, LPIPS 0.313. Registered to Vicon from six floor anchors, 29.2 mm RMS; most of that is the capture's own pose drift along the walk, and the anchors beside the window, A3 and A6, fit to 10 and 20 mm. The capture claims 3.848169 m per unit and the registration measures 3.968721, so the ESDF and the registration carry the MEASURED value and check() reports the 3.0% gap as a warning. Start the render worker with --scale-to-metres 3.968721. gates.json is in scene metres, task.json in Vicon metres. No map: the map format's axis-aligned blocks cannot describe a panel with a hole in it. The Vicon frame here is 0.56 deg from the A5 scenes'; anchors.json carries the six points it was fitted to. Stored in the Vicon frame since 2026-10-23 (captures/tools/level_bundle.py): scene metres are Vicon metres and z is up. The COLMAP-frame files are in archive/superseded_copies/a4_colmap_frame/.",
+  "files": {
+    "splat": "a4_cleaned_splat.splat",
+    "esdf": "a4_esdf.npy",
+    "contract": "policy_contract.json",
+    "gates": "gates.json",
+    "task": "task.json",
+    "pointcloud": "a4_flight_pc.ply",
+    "dataparser_transforms": "dataparser_transforms.json",
+    "vicon_transform": "vicon_transform.json",
+    "anchors": "anchors.json",
+    "splat_frame": "splat_frame.json"
+  },
+  "checksums": {
+    "splat": "64b7f6df4b3c8f8e2a8772cd975b0592ea6ef8d9543d624370ba0f8e77b2986e"
+  },
+  "contract_fingerprint": "87ff6587c836",
+  "_render_worker_args": [
+    "--backend",
+    "cleaned-splat",
+    "--splat",
+    "a4_cleaned_splat.splat",
+    "--splat-config",
+    "nerfstudio_config.yml",
+    "--transforms-json",
+    "capture_transforms.json",
+    "--scale-to-metres",
+    "3.968721",
+    "--empty-depth-raw-m",
+    "4.0"
+  ],
+  "_provenance": {
+    "capture": "captures/a4/polycam1, Polycam LiDAR, 2026-10-23, 609 keyframes, complete export (one focal length)",
+    "training_run": "polycam1_all_seeded/splatfacto/2026-10-23_211623 on pear-2, 30k steps, stock settings, seeded from seed_pc.ply",
+    "seed": "captures/tools/depth_seed.py over polycam_raw.zip",
+    "cleaning": "captures/tools/splat_preclean.py removed 110 floaters of 1,251,221",
+    "pointcloud": "the ESDF crop of the cleaned splat (captures/tools/esdf_crop.py, floor plane from room_anchors); moved into the Vicon frame, x/y/z only",
+    "esdf": "rebuilt from the moved crop by captures/tools/level_bundle.py with scene_geometry.py's method: 20 mm voxels, 0.40 m truncation, 0.20 m padding",
+    "frame": "registration/frame_a4.py: splat_frame.py --polycam's levelling, with the anchor search seeded from the teal cards because A4 has two pole tops, not four",
+    "registration": "captures/tools/anchor_views.py + detect_cards.py + detect_a1.py + anchors_est.py, fitted to all six anchors",
+    "layout": "scene_layouts/a4/layout.json, from captures/tools/vicon_layout.py: one stand, the window's, with its two foot markers set aside",
+    "window": "window_aperture.json, a copy of registration/window_openings.json from captures/tools/window_aperture.py: the hole measured in the registered splat, not with a tape",
+    "contract": "field of view pinned to a3_train's so every scene shares a fingerprint",
+    "built_by": "captures/a4/build_bundle.py",
+    "levelling": "captures/tools/level_bundle.py, 2026-10-23: splat, crop and ESDF moved into the Vicon frame by the registration's rigid motion; see levelling.json"
+  }
+}

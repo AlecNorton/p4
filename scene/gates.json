@@ -1,0 +1,44 @@
+{
+  "_comment": "The aperture in SCENE metres (splat file units x 3.968721), the frame of the ESDF and SplatEnv: one window, flown along its normal. It is a 1.08 x 1.78 m panel standing 2.86 m down the course and facing the L tape, with an irregular hand-cut hole of 0.2088 m2 whose widest inscribed circle is 0.396 m. Its opening here is the largest RECTANGLE that fits inside that hole, 0.408 x 0.296 m, measured in the registered splat rather than with a tape. The panel has 3 further holes, 0.134/0.064/0.048 m across; they are too small to fly and are INTENDED decoys: finding a dark region is not the task, finding the one a drone fits through is. The largest decoy is 0.134 m across and a Crazyflie is about 0.13 m, so 'dark and roughly drone-sized' is not enough either. The gap under the panel, where it stands on its legs, is not a way through. Converted from the Vicon measurements under 'vicon' with vicon_transform.json by captures/a4/build_bundle.py. Since 2026-10-23 the scene frame is the Vicon frame (see levelling.json), so 'centre' and 'vicon.centre' agree.",
+  "gates": [
+    {
+      "name": "window",
+      "centre": [
+        2.868500014,
+        -0.193100014,
+        1.147999998
+      ],
+      "normal": [
+        0.998744095,
+        0.049938723,
+        -0.004044418
+      ],
+      "up": [
+        0.003929958,
+        0.002389975,
+        0.999989421
+      ],
+      "width_m": 0.408,
+      "height_m": 0.296,
+      "vicon": {
+        "centre": [
+          2.8685,
+          -0.1931,
+          1.148
+        ],
+        "normal": [
+          0.998744,
+          0.049939,
+          -0.004044
+        ],
+        "heading_deg": 2.86,
+        "opening_centre_above_floor_m": 1.144,
+        "opening_w_h_m": [
+          0.408,
+          0.296
+        ],
+        "kind": "hand-cut hole, 0.2088 m2, 0.396 m across at its widest circle; this is its largest inscribed rectangle"
+      }
+    }
+  ]
+}

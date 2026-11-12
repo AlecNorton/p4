@@ -1,0 +1,37 @@
+{
+  "_comment": "The six floor anchors in VICON metres as read when this scene was registered, the frame vicon_transform.json is fitted in. The Vicon system was recalibrated between the A5 recordings and this one: the six anchors agree with the A5 scenes' to 0.1 mm once the frame is turned 0.56 deg (0.43 deg of yaw), so the anchors did not move and the frame did. Record these six once at the start of a flight session and compare with splat_hitl.anchors.drift. The registration was fitted to A1, A2, A3, A4, A5, A6; A1 is black L tape with a marker ball at its corner rather than a teal card.",
+  "anchors": {
+    "A1": [
+      0.0048,
+      0.0066,
+      0.0189
+    ],
+    "A2": [
+      -0.3916,
+      1.4385,
+      0.0114
+    ],
+    "A3": [
+      2.6198,
+      1.4599,
+      0.001
+    ],
+    "A4": [
+      5.2302,
+      1.3962,
+      -0.0094
+    ],
+    "A5": [
+      5.2331,
+      -1.4053,
+      0.0004
+    ],
+    "A6": [
+      2.6273,
+      -1.3491,
+      0.0029
+    ]
+  },
+  "recorded": "2026-10-24T00:15Z",
+  "source": "scene_layouts/a4, /vicon/room_anchors/room_anchors"
+}
