@@ -108,6 +108,22 @@ def world_to_body(v_world, yaw_rad):
 def wrap_pi(a):
     return (a + math.pi) % (2.0 * math.pi) - math.pi
 
+class WorldRay():
+    def __init__(self, origin, direction):
+        self.origin = np.asarray(origin, float)
+        self.direction = np.asarray(direction, float)
+    
+    def __eq__(self, other):
+        if isinstance(other, WorldRay):
+            if(other.origin == self.origin and other.direction = self.direction):
+                return True
+        return False
+    
+    def dist(self, other):
+        if isinstance(other, WorldRay):
+            return np.linalg.norm(np.subtract(self.origin, other.origin))
+        return None
+
 
 class GapFlyer(Policy):
     """Gap finder + state machine + your P2b controller. RGB in, velocity out."""
@@ -126,7 +142,12 @@ class GapFlyer(Policy):
         ######## END TODO ########
         self.fpv = FpvRecorder() if record_fpv else None
         self.K = None
+        #A list of all rays up to length self.rays_length for triangulation. 
+        self.rays = []
+        self.rays_length = 50
         self.reset()
+        #How confident we want to be of gap before aligning ourselves with it. 
+        self.confidence_threshold = .9
 
     def reset(self):
         """Called once before each run. Reset the state machine here."""
@@ -158,8 +179,37 @@ class GapFlyer(Policy):
         # then camera_to_world_dir with state.yaw_rad), starting at
         # state.position_m. Two such rays from places far enough apart cross
         # at it (triangulate): keep the rays, not just the last one.
-        return None
+        pix_ray = self.pixel_ray(det["centre"][0], det["centre"][1], self.K)
+        world_ray = self.camera_to_world_dir(pix_ray, state.yaw_rad)
+        norm_world_ray = np.divide(world_ray, np.linalg.norm(world_ray))
+        self.rays.append(WorldRay(state.position_m, world_ray))
+        if(len(self.rays) > self.rays_length):
+            self.rays.pop(0)
+        one_ray, second_ray = self.get_distanced_rays()
+        if(one_ray is None):
+            return None
+        midpoint, missed_dist = triangulate(one_ray.origin, one_ray.direction, second_ray.origin, second_ray.direction)
+        return (midpoint, missed_dist)
         ######## END TODO ########
+
+    def get_distanced_rays(self):
+        max_dist = -inf
+        chosen_ray_one = None
+        chosen_ray_second = None
+        for one_ray in self.rays:
+            for second_ray in self.rays:
+                if (one_ray == second_ray):
+                    continue
+                else:
+                    dist = one_ray.dist(second_ray)
+                    if(dist >= max_dist):
+                        max_dist = dist
+                        chosen_ray_one = one_ray
+                        chosen_ray_second = second_ray
+        return chosen_ray_one, chosen_ray_second
+
+        
+
 
     # -- control -------------------------------------------------------------
     def velocity_to(self, target_world, state):
@@ -167,6 +217,19 @@ class GapFlyer(Policy):
         ######## TODO - YOUR P2B CONTROLLER ########
         return np.zeros(3)
         ######## END TODO ########
+
+    def refine(self, midpoint, dist):
+        ##TODO:
+        confidence = 0.0
+        if self.gap is None:
+            #First ray cast i.e. first estimate of gap orientation, i.e. best estimate. 
+            self.gap = midpoint
+        else:
+            #TODO: Implement some type of refinement (filtering), such as (1-weight)*self.gap + (weight*midpoint) / 2, where weight is a float value 0-1 of how much we trust new data
+            
+
+        return confidence
+
 
     # -- the state machine -----------------------------------------------------
     def act(self, obs, state) -> Action:
@@ -178,20 +241,68 @@ class GapFlyer(Policy):
         seen = None if det is None else self.locate(det, state)
 
         v_world, yaw_rate = np.zeros(3), 0.0
+        confidence = refine(seen[0], seen[1])
+        
         ######## TODO - THE STATE MACHINE ########
         # Keep self.gap on the gap you are flying to: refine it from `seen`
         # while you approach, and stop once you are committed.
         # search    no gap yet: move so the image moves -- the slow sideways
         #           sweep below -- until find_gap and locate agree on one
-        # align     move to a point in front of the gap, on its axis
+        # move_to     move to a point in front of the gap, on its axis
+        #turn_to
         # approach  fly at the gap, keeping it in the middle of the image
         # through   commit: carry on straight until you are past the panel --
         #           the gap fills and then leaves the image before you get there
         # done      past the panel: hover
         # Change self.mode when a step is done.
         if self.mode == "search":
+            #Searching up and down.
             v_world = body_to_world([0.0, 0.15 * math.cos(0.8 * state.t_s), 0.0],
                                     state.yaw_rad)
+            if(seen is not None):
+                if(confidence > self.confidence_threshold):
+                    self.mode=="move_to"
+                    #TODO: Choose target point aligned with axis
+                    '''
+                    target_point = self.gap - (self.target_axis)*self.safety_dist
+                    v_world = self.velocity_to(target_point, state)
+                    '''
+        if self.mode == "move_to":
+            v_world = self.velocity_to(target_point, state)
+            #We've neared the point enough where the drone has stopped OR the drone's state_position is near the target_point
+            if(np.linalg.norm(np.subtract(state.position_m, target_point)) < 1e-3):
+                v_world = np.zeros(3)
+                self.mode == "turn_to"
+                #TODO: set desired yaw
+                desired_yaw = None
+        if self.mode == "turn_to":
+            #TODO: Need to change the yaw so that the drone is facing the correct way, by setting desired state.yaw_rad
+            if(abs(state.yaw_rad - desired_yaw) <= 1e-3):
+                self.mode == "approach"
+        if self.mode == "approach":
+            #Approach up to 10 cm, keeping gap in the middle of the image.
+            self.target_point = self.gap - (self.target_axis)*.01
+            v_world = self.velocity_to(self.target_point, state)
+            if(np.linalg.norm(np.subtract(state.position_m, target_point)) < 1e-3):
+                v_world = np.zeros(3)
+                self.mode == "commit"
+                #Choose a target point 1 meter in front of drone, which should be facing the gap, .1 m away from it and fly cleanly through.
+                self.target_point = self.state_position + body_to_world([1, 0, 0], state.yaw_rad)
+
+        if self.mode == "commit":
+            #Choose a target point 1 meter in front of drone, which should be facing the gap, .1 m away from it and fly cleanly through.
+            v_world = velocity_to(self.target_point, state)
+            if (np.linalg.norm(np.subtract(state.position_m, target_point)) < 1e-3):
+                v_world = np.zeros(3)
+                self.mode == "done"
+        
+        if self.mode == "done":
+            print("All done!")
+            
+
+        
+
+
         ######## END TODO ########
 
         if self.fpv is not None:

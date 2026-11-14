@@ -47,18 +47,20 @@ dry run `check_setup.py` prints, then this from your folder, then again without
 `--dry-run` (full procedure: the course site's Deployment page):
 
 ```bash
-PYTHONPATH=Code:$PYTHONPATH python3 ../p4_starter/tools/fly.py \
-  --topic       /vicon/<object>/<object> \
-  --contract    ../p4_starter/p4_contract.json \
-  --transform   ../p4_starter/scene/vicon_transform.json \
-  --gates       ../p4_starter/scene/gates.json \
-  --esdf        ../p4_starter/scene/a4_esdf.npy \
-  --clearance-m 0.05 \
-  --worker-port 7790 \
-  --policy      policy_template:GapFlyer \
-  --hold-altitude-m 0.7 \
-  --log         run.json \
-  --dry-run
+PYTHONPATH=Code:$PYTHONPATH python3 ../p4/tools/fly.py \
+      --topic       /vicon/crazyfly_g3
+      /crazyfly_g3 \
+      --contract    ../p4/p4_contract.json \
+      --transform   ../p4/scene/vicon_transform.json \
+      --gates       ../p4/scene/gates.json \
+      --esdf        ../p4/scene/a4_esdf.npy \
+      --clearance-m 0.05 \
+      --worker-port 7790 \
+      --policy      policy_template:HoverHere \
+      --hold-altitude-m 0.7 \
+      --log         hover.json \
+      --dry-run
+
 ```
 
 `fly.py` is `ros_node` with one change: your policy gets the RGB image and no
