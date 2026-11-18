@@ -3,8 +3,8 @@
   "observation": {
     "sensor": {
       "name": "a4",
-      "width": 320,
-      "height": 213,
+      "width": 480,
+      "height": 320,
       "fov_x_deg": 60.656255852364644,
       "mount_pitch_deg": 0.0,
       "mount_yaw_deg": 0.0,
@@ -43,16 +43,16 @@
   "trainer_action_semantics": "",
   "trainer_observation_semantics": "",
   "notes": "",
-  "fingerprint": "9893062d4d6c",
+  "fingerprint": "b2b2fb73bc8f",
   "derived": {
     "observation_shape": [
       3,
-      213,
-      320
+      320,
+      480
     ],
     "fov_x_half_tan": 0.5850115681034979,
-    "fov_y_deg": 42.55171052754858,
+    "fov_y_deg": 42.612334300758434,
     "control_dt_s": 0.06666666666666667,
-    "sensor_fingerprint": "c20e6f79336f"
+    "sensor_fingerprint": "260fd4821937"
   }
 }
