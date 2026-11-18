@@ -39,6 +39,7 @@ from splat_hitl.commands import Action
 from splat_hitl.policy import Policy
 
 from fpv import FpvRecorder
+from p2b_controller import PositionController
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FOV_X_DEG = 60.656255852364644         # fixed: the drone camera's field of view
@@ -140,6 +141,7 @@ class GapFlyer(Policy):
         # by a path built from HERE. Load once, here: never inside act().
         self.net = None
         ######## END TODO ########
+        self.ctrl = PositionController()
         self.fpv = FpvRecorder() if record_fpv else None
         self.K = None
         #A list of all rays up to length self.rays_length for triangulation. 
@@ -151,6 +153,7 @@ class GapFlyer(Policy):
 
     def reset(self):
         """Called once before each run. Reset the state machine here."""
+        self.ctrl.reset()
         self.mode = "search"
         self.prev = None            # (rgb, position_m, yaw_rad) of the last frame
         self.gap = None             # your estimate of the gap's centre, world metres
@@ -214,9 +217,7 @@ class GapFlyer(Policy):
     # -- control -------------------------------------------------------------
     def velocity_to(self, target_world, state):
         """Your P2b position loop: a world target -> a world velocity in m/s."""
-        ######## TODO - YOUR P2B CONTROLLER ########
-        return np.zeros(3)
-        ######## END TODO ########
+        return self.ctrl.step(state.position_m, target_world)
 
     def refine(self, midpoint, dist):
         ##TODO:
