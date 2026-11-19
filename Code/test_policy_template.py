@@ -556,7 +556,8 @@ class GapFlyer(Policy):
                 self.log(state, f"Target before safety_dist: {self.target}")
                 normal_vec = self.det["wall"]["normal_cam"]
                 self.log(state, f"Normal Vec: {normal_vec}")
-                self.log(state, f"Normal Vec: {body_to_world(normal_vec, state.yaw_rad)}")
+                normal_vec = body_to_world 
+                self.log(state, f"Normal Vec: {world_to_body(normal_vec, state.yaw_rad)}")
                 self.target = np.add(np.multiply(normal_vec, self.safety_dist), self.target)
                 self.log(state, f"Target: {self.target}")
 
