@@ -2,7 +2,7 @@ Blender
 __pycache__
 # not part of the submission / repo
 Code/neuflow/
-eval/
+/eval/
 # Hugging Face download leftover: marks *.safetensors for Git LFS; weights go in as a plain file
 Code/searaft/models/**/.gitattributes
 # run outputs and job logs
