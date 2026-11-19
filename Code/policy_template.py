@@ -136,6 +136,7 @@ class GapFlyer(Policy):
     sensor_fingerprint = None
 
     def __init__(self, record_fpv=True):
+
         ######## TODO - LOAD WHAT YOUR PERCEPTION NEEDS ########
         # A network's weights, say: keep them next to this file and load them
         # by a path built from HERE. Load once, here: never inside act().
@@ -150,6 +151,7 @@ class GapFlyer(Policy):
         self.reset()
         #How confident we want to be of gap before aligning ourselves with it. 
         self.confidence_threshold = .9
+        print("Finished loading policy.")
 
     def reset(self):
         """Called once before each run. Reset the state machine here."""
@@ -234,6 +236,7 @@ class GapFlyer(Policy):
 
     # -- the state machine -----------------------------------------------------
     def act(self, obs, state) -> Action:
+        print("Acting step: ")
         if self.K is None:
             h, w = obs.rgb.shape[:2]
             self.K = camera_matrix(w, h)
