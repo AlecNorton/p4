@@ -195,25 +195,44 @@ def plot(log, gates, path):
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     except ImportError:
         return None
     P = np.array([r["scene_m"] for r in log])
-    fig, ax = plt.subplots(figsize=(9, 3.8))
-    ax.plot(P[:, 0], P[:, 1], "-", color="tab:blue", lw=1.5, label="drone")
-    ax.plot(P[0, 0], P[0, 1], "o", color="tab:blue")
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection = '3d')
+    ax.plot(P[:, 0], P[:, 1], P[:, 2], "-", color="tab:blue", lw=1.5, label="drone")
+    ax.plot(P[0, 0], P[0, 1], P[0, 2], "o", color="tab:blue")
     for g in gates.gates:
         r = g.right * g.width_m / 2.0
+        u = g.up * g.height_m / 2.0
         a, b = g.centre - r, g.centre + r
-        ax.plot([a[0], b[0]], [a[1], b[1]], "-", color="crimson", lw=4)
-        ax.annotate(g.name, g.centre[:2], textcoords="offset points", xytext=(6, 6))
+        a, b, c, d = a+u, b+u, b-u, a-u #Left upper corner, right upper corner, right lower corner, left lower corner 
+        verts = list_of_vertices(a, b, c, d)
+        print(f"Verts: {verts}")
+        poly = Poly3DCollection(verts, alpha=.3)
+        poly.set_facecolor((1, 0, 0))
+        poly.set_edgecolor('black')
+        ax.add_collection(poly)
+        #ax.annotate(g.name, g.centre[:2], textcoords="offset points", xytext=(6, 6))
+    ax.set_xlim(-1, 5)
+    ax.set_ylim(-2, 2)
+    ax.set_zlim(0, 3)
     ax.set_aspect("equal")
     ax.set_xlabel("x (m)")
+
     ax.set_ylabel("y (m)")
     ax.legend(loc="best")
     fig.tight_layout()
     fig.savefig(path, dpi=120)
     plt.close(fig)
     return path
+
+def list_of_vertices(a, b, c, d):
+    face1 = [a, b, c, d, a]
+    verts = []
+    verts.append(face1)
+    return np.asarray(verts)
 
 
 def main(argv=None):
