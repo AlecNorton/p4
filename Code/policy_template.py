@@ -237,7 +237,7 @@ class GapFlyer(Policy):
 
     # -- the state machine -----------------------------------------------------
     def act(self, obs, state) -> Action:
-        print("Acting step: ")
+        print(state.state_m)
         if self.K is None:
             h, w = obs.rgb.shape[:2]
             self.K = camera_matrix(w, h)
@@ -265,8 +265,8 @@ class GapFlyer(Policy):
 
         if self.mode == "search_0":
             #Searching up and down.
-            v_world = self.velocity_to([0, 1.0, 0] ,state)
-            
+            v_world = body_to_world(self.velocity_to([0, 1.0, 0] ,state), state.yaw_rad)
+
             if(seen is not None):
                 if(confidence > self.confidence_threshold):
                     self.mode=="move_to"
