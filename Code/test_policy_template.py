@@ -48,6 +48,7 @@ from argparse import Namespace
 import cv2
 import numpy as np
 import torch
+from furthest import furthest
 
 from splat_hitl.commands import Action
 from splat_hitl.policy import Policy
@@ -109,6 +110,23 @@ def camera_to_world_dir(d_cam, yaw_rad):
     body = np.array([d[2], -d[0], -d[1]])                 # x forward, y left, z up
     return body_to_world(body, yaw_rad)
 
+def pixel_to_camera(u, v, depth_m, K):
+    """Pixel (u, v) at depth z -> camera frame (x right, y down, z forward).
+
+    Pixel (i, j) covers [i, i + 1) x [j, j + 1): its centre is (i + 0.5, j + 0.5).
+    """
+    u, v, z = (np.asarray(a, float) for a in (u, v, depth_m))
+    return np.stack([(u - K[0, 2]) * z / K[0, 0], (v - K[1, 2]) * z / K[1, 1], z], axis=-1)
+
+
+def camera_to_world(p_cam, state):
+    """Camera frame -> world. Uses the yaw only; roll and pitch are a few degrees."""
+    p = np.asarray(p_cam, float)
+    body = np.stack([p[..., 2], -p[..., 0], -p[..., 1]], axis=-1)        # FLU
+    c, s = math.cos(state.yaw_rad), math.sin(state.yaw_rad)
+    world = np.stack([c * body[..., 0] - s * body[..., 1],
+                      s * body[..., 0] + c * body[..., 1], body[..., 2]], axis=-1)
+    return np.asarray(state.position_m, float) + world
 
 def triangulate(p1, d1, p2, d2):
     """Where two rays p + t d (world frame, t > 0) pass closest.
@@ -336,7 +354,7 @@ def segment(rho, wall, up, vp, keep=None):
 # --------------------------------------------------------------------------- #
 class GapFlyer(Policy):
     """Gap finder + state machine + your P2b controller. RGB in, velocity out."""
-
+    
     name = "p4_gap_flyer"
     # Once your perception is fixed at one resolution, set this to your contract's
     # PolicyContract.load("p4_contract.json").observation.sensor.fingerprint()
@@ -422,16 +440,19 @@ class GapFlyer(Policy):
     def locate(self, det, state):
         """Detection -> where the gap's centre is in the world, or None."""
         ######## TODO - WHERE IS THE GAP ########
+        w = self.det["wall"]
+        depth = w["wall_z_m"]
+        mask = det["mask"]
+        pt = furthest(mask)
+        print(pt)
         ### For AN to fill#####
-        return None
+        return pt
         ######## END TODO ########
 
     # -- control -------------------------------------------------------------
     def velocity_to(self, target_world, state, velocity_ff=(0.0, 0.0, 0.0)):
         """Your P2b position loop: a world target -> a world velocity in m/s."""
-        ######## TODO - YOUR P2B CONTROLLER ########
         return self.ctrl.step(state.position_m, target_world, velocity_ff)
-        ######## END TODO ########
 
     # -- sway: the search motion (ours) ------------------------------------------
     def _targets(self, rng):
@@ -528,6 +549,8 @@ class GapFlyer(Policy):
 
         if self.mode == "move":
             ### For AN to fill#####
+            pt = self.locate(self.det, state)
+            self.log(state, f"Found pixels: {pt}")
             # Placeholder: hover where the search ended. self.det holds the gap mask
             # (and rho, wall, labels); self.locate(self.det, state) -> world target.
             if self.move_hold is None:
