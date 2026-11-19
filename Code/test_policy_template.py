@@ -553,6 +553,7 @@ class GapFlyer(Policy):
                 #Assign target based on self.det
                 #Move to a point self.safety_dist away from target based on normal. 
                 self.target = self.locate(self.det, state)
+                self.log(state, f"Normal Vec: {self.det["wall"]["normal_cam"]}")
                 self.log(state, f"Target before safety_dist: {self.target}")
                 normal_vec = self.det["wall"]["normal_cam"]
                 self.target = np.add(np.multiply(normal_vec, self.safety_dist), self.target)
