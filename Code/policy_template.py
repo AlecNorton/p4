@@ -116,7 +116,7 @@ class WorldRay():
     
     def __eq__(self, other):
         if isinstance(other, WorldRay):
-            if(other.origin == self.origin and other.direction = self.direction):
+            if(other.origin == self.origin and other.direction == self.direction):
                 return True
         return False
     
@@ -196,7 +196,7 @@ class GapFlyer(Policy):
         ######## END TODO ########
 
     def get_distanced_rays(self):
-        max_dist = -inf
+        max_dist = float('-inf')
         chosen_ray_one = None
         chosen_ray_second = None
         for one_ray in self.rays:
@@ -227,7 +227,7 @@ class GapFlyer(Policy):
             self.gap = midpoint
         else:
             #TODO: Implement some type of refinement (filtering), such as (1-weight)*self.gap + (weight*midpoint) / 2, where weight is a float value 0-1 of how much we trust new data
-            
+            pass
 
         return confidence
 
@@ -242,7 +242,9 @@ class GapFlyer(Policy):
         seen = None if det is None else self.locate(det, state)
 
         v_world, yaw_rate = np.zeros(3), 0.0
-        confidence = refine(seen[0], seen[1])
+        confidence = 0.0
+        if(seen is not None):
+            confidence = self.refine(seen[0], seen[1])
         
         ######## TODO - THE STATE MACHINE ########
         # Keep self.gap on the gap you are flying to: refine it from `seen`
@@ -268,6 +270,7 @@ class GapFlyer(Policy):
                     target_point = self.gap - (self.target_axis)*self.safety_dist
                     v_world = self.velocity_to(target_point, state)
                     '''
+        '''
         if self.mode == "move_to":
             v_world = self.velocity_to(target_point, state)
             #We've neared the point enough where the drone has stopped OR the drone's state_position is near the target_point
@@ -299,6 +302,7 @@ class GapFlyer(Policy):
         
         if self.mode == "done":
             print("All done!")
+        '''
             
 
         
