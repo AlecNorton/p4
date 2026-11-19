@@ -374,6 +374,8 @@ class GapFlyer(Policy):
         atexit.register(self.save_debug)
         ######## END TODO ########
         self.fpv = FpvRecorder() if record_fpv else None
+        self.target = None
+        self.safety_dist = .5
         self.reset()
 
     def reset(self):
@@ -440,14 +442,16 @@ class GapFlyer(Policy):
     def locate(self, det, state):
         """Detection -> where the gap's centre is in the world, or None."""
         ######## TODO - WHERE IS THE GAP ########
-        w = self.det["wall"]
-        depth = w["wall_z_m"]
-        mask = det["mask"]
-        pt = furthest(mask)
-        print(pt)
-        ### For AN to fill#####
-        return pt
-        ######## END TODO ########
+        try:
+            w = self.det["wall"]
+            depth = w["wall_z_m"]
+            mask = det["mask"]
+            pt = furthest(mask)
+            cam_points = pixel_to_camera(pt[0], pt[1], depth, self.K)
+            world_point = camera_to_world(cam_points, state)
+            return world_point
+        except:
+            return None
 
     # -- control -------------------------------------------------------------
     def velocity_to(self, target_world, state, velocity_ff=(0.0, 0.0, 0.0)):
@@ -546,16 +550,28 @@ class GapFlyer(Policy):
                 self.mode = "move"
                 self.ctrl.reset()
                 self.log(state, "-> move")
+                #Assign target based on self.det
+                #Move to a point self.safety_dist away from target based on normal. 
+                self.target = self.locate(self.det, state)
+                normal_vec = self.det["wall"]["normal_cam"]
+                self.target = np.add(np.multiply(normal_vec, self.safety_dist), self.target)
+                self.log(state, f"Target: {self.target}")
 
         if self.mode == "move":
             ### For AN to fill#####
-            pt = self.locate(self.det, state)
-            self.log(state, f"Found pixels: {pt}")
-            # Placeholder: hover where the search ended. self.det holds the gap mask
-            # (and rho, wall, labels); self.locate(self.det, state) -> world target.
+            if(self.target is not None):
+                v_world = self.velocity_to(self.target, state)
+                pos_diff = np.linalg.norm(np.subtract(state.position_m, self.target))
+                if(pos_diff <= 1e-3):
+                    self.mode = "align"
+                    self.ctrl.reset()
+                    self.log(state, "->align")
+
+            else:
+                v_world = self.velocity_to(self.move_hold, state)
             if self.move_hold is None:
                 self.move_hold = np.array(state.position_m, float)
-            v_world = self.velocity_to(self.move_hold, state)
+            
         ######## END TODO ########
 
         if self.fpv is not None:
