@@ -153,6 +153,7 @@ class GapFlyer(Policy):
         #How confident we want to be of gap before aligning ourselves with it. 
         self.confidence_threshold = .9
         print("Finished loading policy.")
+        self.starting_point = None
 
     def reset(self):
         """Called once before each run. Reset the state machine here."""
@@ -237,10 +238,12 @@ class GapFlyer(Policy):
 
     # -- the state machine -----------------------------------------------------
     def act(self, obs, state) -> Action:
-        print(state.state_m)
         if self.K is None:
             h, w = obs.rgb.shape[:2]
             self.K = camera_matrix(w, h)
+
+        if(self.starting_point is None):
+            self.starting_point = state.position_m
 
         det = self.find_gap(obs.rgb, self.prev)
         seen = None if det is None else self.locate(det, state)
@@ -265,16 +268,18 @@ class GapFlyer(Policy):
 
         if self.mode == "search_0":
             #Searching up and down.
-            v_world = body_to_world(self.velocity_to([0, 1.0, 0] ,state), state.yaw_rad)
+            target = np.add(self.starting_point, [0, 0, 1.0])
+            v_world = self.velocity_to(target ,state)
+            if(np.linalg.norm(np.subtract(state.position_m, target)) < 1e-3):
+                print("Switching state to search_1.")
+                self.mode == "search_1"
 
-            if(seen is not None):
-                if(confidence > self.confidence_threshold):
-                    self.mode=="move_to"
-                    #TODO: Choose target point aligned with axis
-                    '''
-                    target_point = self.gap - (self.target_axis)*self.safety_dist
-                    v_world = self.velocity_to(target_point, state)
-                    '''
+        if self.mode == "search_1":
+            target = np.add(self.starting_point, [0, 1.0, 1.0])
+            v_world = self.velocity_to(target, state)
+            if(np.linalg.norm(np.subtract(state.position_m, target)) < 1e-3):
+                self.mode = "move_to"
+
         '''
         if self.mode == "move_to":
             v_world = self.velocity_to(target_point, state)
@@ -284,6 +289,7 @@ class GapFlyer(Policy):
                 self.mode == "turn_to"
                 #TODO: set desired yaw
                 desired_yaw = None
+        
         if self.mode == "turn_to":
             #TODO: Need to change the yaw so that the drone is facing the correct way, by setting desired state.yaw_rad
             if(abs(state.yaw_rad - desired_yaw) <= 1e-3):
