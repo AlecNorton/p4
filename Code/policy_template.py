@@ -145,7 +145,8 @@ class GapFlyer(Policy):
         self.ctrl = PositionController()
         self.fpv = FpvRecorder() if record_fpv else None
         self.K = None
-        #A list of all rays up to length self.rays_length for triangulation. 
+        #A list of all rays up to length 
+        # self.rays_length for triangulation. 
         self.rays = []
         self.rays_length = 50
         self.reset()
@@ -156,7 +157,7 @@ class GapFlyer(Policy):
     def reset(self):
         """Called once before each run. Reset the state machine here."""
         self.ctrl.reset()
-        self.mode = "search"
+        self.mode = "search_0"
         self.prev = None            # (rgb, position_m, yaw_rad) of the last frame
         self.gap = None             # your estimate of the gap's centre, world metres
 
@@ -261,10 +262,11 @@ class GapFlyer(Policy):
         #           the gap fills and then leaves the image before you get there
         # done      past the panel: hover
         # Change self.mode when a step is done.
-        if self.mode == "search":
+
+        if self.mode == "search_0":
             #Searching up and down.
-            v_world = body_to_world([0.0, 0.15 * math.cos(0.8 * state.t_s), 0.0],
-                                    state.yaw_rad)
+            v_world = self.velocity_to([0, 1.0, 0] ,state)
+            
             if(seen is not None):
                 if(confidence > self.confidence_threshold):
                     self.mode=="move_to"
