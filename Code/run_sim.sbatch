@@ -1,3 +1,19 @@
+#!/bin/bash
+# One P4 simulation run on a Turing GPU node, plus the FPV video.
+#   cd ~/scratch/rbe595/p4 && sbatch Code/run_sim.sbatch                                   # starter-layout policy
+#   POLICY=test_policy_classes:ModeGapFlyer sbatch Code/run_sim.sbatch                     # mode-class policy
+#   sbatch Code/run_sim.sbatch --max-s 60                                                  # extra args go to Wrapper.py
+# Submit from the repo root (the folder with Code/, scene/, p4_contract.json).
+# Everything for one job lands in runs/<job id>/: run.json, run.png, run_log.txt, fpv/, FPVVideo.mp4, debug/
+#SBATCH -J p4_sim
+#SBATCH -p academic
+#SBATCH --account rbe595
+#SBATCH --gres=gpu:1
+#SBATCH -c 4
+#SBATCH --mem=16G
+#SBATCH -t 00:45:00
+#SBATCH -o slurm-p4_sim-%j.out
+
 
 set -eo pipefail
 module load cuda12.6/toolkit/12.6.3          # matches torch 2.6.0+cu126; gsplat compiles with it
