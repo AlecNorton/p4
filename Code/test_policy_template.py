@@ -376,7 +376,7 @@ class GapFlyer(Policy):
         self.fpv = FpvRecorder() if record_fpv else None
         self.target = None
         self.safety_dist = .2
-        self.yaw_change_rate = .1
+        self.yaw_change_rate = .2
         self.reset()
 
     def reset(self):
@@ -560,13 +560,14 @@ class GapFlyer(Policy):
                 normal_vec = camera_to_world_dir(normal_vec, state.yaw_rad)
                 self.target = np.add(np.multiply(normal_vec, self.safety_dist), self.target)
                 self.log(state, f"Target: {self.target}")
+                self.sway = None
 
         if self.mode == "move":
             ### For AN to fill#####
             if(self.target is not None):
                 v_world = self.velocity_to(self.target, state)
                 pos_diff = np.linalg.norm(np.subtract(state.position_m, self.target))
-                if(pos_diff <= 1e-3):
+                if(pos_diff <= 1e-2):
                     self.mode = "align"
                     self.ctrl.reset()
                     self.log(state, "->align")
@@ -577,16 +578,28 @@ class GapFlyer(Policy):
 
         if(self.mode == "align"):
             des_angle = self.det["wall"]["normal_vs_axis_deg"]
-            self.log(state, f"Desired angle: {des_angle}")
             diff =  wrap_pi(des_angle - state.yaw_rad)
+            self.log(state, f"Diff: {diff}")
+
             if(abs(diff) < 1e-3):
+                '''
                 self.log(state, "mode -> scan again")
                 self.mode = "scan_again"
                 yaw_rate = 0
+                '''
+                normal_vec = self.det["wall"]["normal_cam"]
+                self.mode = "commit"
+                self.log(state, "mode -> commit")
+                #self.log(state, f"Normal Vec: {camera_to_world_dir(normal_vec, state.yaw_rad)}")
+                normal_vec = camera_to_world_dir(-normal_vec, state.yaw_rad)
+                self.target = np.add(np.multiply(normal_vec, .5), self.target)
+                self.log(state, f"Target: {self.target}")
+                yaw_rate = 0
+
             else:
                 yaw_rate = self.yaw_change_rate
                 self.log(state, f"Rotating... current yaw: {state.yaw_rad}")
-            
+        '''
         if(self.mode == "scan_again"):
             normal_vec = self.det["wall"]["normal_cam"]
             if self.sway is None:
@@ -613,7 +626,7 @@ class GapFlyer(Policy):
                 normal_vec = camera_to_world_dir(-normal_vec, state.yaw_rad)
                 self.target = np.add(np.multiply(normal_vec, .5), self.target)
                 self.log(state, f"Target: {self.target}")
-                
+        '''
         if(self.mode=="commit"):
             if(self.target is not None):
                 v_world = self.velocity_to(self.target, state)
