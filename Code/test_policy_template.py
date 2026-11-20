@@ -376,6 +376,7 @@ class GapFlyer(Policy):
         self.fpv = FpvRecorder() if record_fpv else None
         self.target = None
         self.safety_dist = .2
+        self.yaw_change_rate = .1
         self.reset()
 
     def reset(self):
@@ -575,7 +576,7 @@ class GapFlyer(Policy):
                 v_world = self.velocity_to(self.move_hold, state)
 
         if(self.mode == "align"):
-            des_angle = self.det["wall"]["normal_vs_axis"]
+            des_angle = self.det["wall"]["normal_vs_axis_deg"]
             self.log(state, f"Desired angle: {des_angle}")
             diff =  wrap_pi(des_angle - state.yaw_rad)
             if(abs(diff) < 1e-3):
@@ -583,7 +584,7 @@ class GapFlyer(Policy):
                 self.mode = "scan_again"
                 yaw_rate = 0
             else:
-                yaw_rate = .01
+                yaw_rate = self.yaw_change_rate
                 self.log(state, f"Rotating... current yaw: {state.yaw_rad}")
             
         if(self.mode == "scan_again"):
