@@ -1,45 +1,37 @@
 import cv2
 import numpy as np
 
-def furthest(mask, scan, pixel_threshold = 50):        
-        cv2.imwrite(f"Init_Mask_scan_{scan}.png", mask)
-        img = np.asarray(mask).astype('uint8')
-        contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        height, width = img.shape
-        empty = np.zeros((height, width, 1), np.uint8)
-        returnPt = None
-        maxPixels = 0
-        count = 0
-        for c in contours:
-            one_img = cv2.drawContours(empty.copy(), [c], 0, (255, 255, 255), -1)
-            mask_img = (one_img.copy() / 255).astype(int)
+def furthest(mask, scan=0, pixel_threshold=50, debug=False):
+    """Return (column, row) with maximum clearance in the largest gap.
 
-            one_img = cv2.cvtColor(one_img, cv2.COLOR_GRAY2BGR)
-            num = np.count_nonzero(mask_img)
-            if(num <= pixel_threshold):
-                #Not a mask
-                print("too small; not a mask, continuing.")
-                continue
-            mask_img = np.squeeze(mask_img)
-            indices=  np.nonzero(mask_img)
-            avg = np.mean(indices, axis = 1).astype('int')
-            raw_dist = np.zeros(mask_img.shape, dtype=np.float32)
-            raw_dist = np.pad(raw_dist, 1, 'constant')
-            for pt_num in range(0, len(indices[0])):
-                x, y = indices[0][pt_num], indices[1][pt_num]
-                pt = np.float32((y, x))
-                raw_dist[x,y] = cv2.pointPolygonTest(c, pt, True)
-            minVal, maxVal, _, maxDistPt = cv2.minMaxLoc(raw_dist)
-            # Depicting the  distances graphically
-            cv2.circle(one_img, maxDistPt, 5,(255,0,0), -1)
-            cv2.circle(one_img, (avg[1], avg[0]), 5, (0, 255, 0), -1)
-            cv2.imwrite(f"scan_{scan}_mask_{count}.png", one_img)
-            if(maxPixels < num):
-                 returnPt = maxDistPt
-                 maxPixels = num
-                 biggest_gap = one_img.copy()
-            count += 1
-        cv2.imwrite("final_mask.png", biggest_gap)
-            
-        
-        return returnPt
+    Preserve the existing largest-component rule, but measure distance to ALL
+    background pixels, including islands inside a gap. Return None for an
+    empty/too-small mask. The returned coordinates are pixel indices; callers
+    add 0.5 when constructing a camera ray through the pixel centre.
+    """
+    if mask is None:
+        return None
+    values = np.asarray(mask)
+    if values.ndim != 2 or values.size == 0:
+        return None
+    img = (np.isfinite(values) & (values > 0)).astype(np.uint8)
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(img, connectivity=8)
+    if n <= 1:
+        return None
+    label = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+    if stats[label, cv2.CC_STAT_AREA] <= pixel_threshold:
+        return None
+    component = (labels == label).astype(np.uint8)
+    # Padding makes the image boundary count as a boundary too. Crop it back
+    # before finding the maximum, so no coordinate offset is introduced.
+    distance = cv2.distanceTransform(np.pad(component, 1), cv2.DIST_L2,
+                                     cv2.DIST_MASK_PRECISE)[1:-1, 1:-1]
+    _, clearance, _, point = cv2.minMaxLoc(distance)
+    if clearance <= 0:
+        return None
+    if debug:
+        cv2.imwrite("Init_Mask_scan_%s.png" % scan, img * 255)
+        overlay = cv2.cvtColor(component * 255, cv2.COLOR_GRAY2BGR)
+        cv2.circle(overlay, point, 5, (255, 0, 0), -1)
+        cv2.imwrite("scan_%s_mask.png" % scan, overlay)
+    return point
