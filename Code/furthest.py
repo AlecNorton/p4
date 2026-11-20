@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 
-def furthest(mask, pixel_threshold = 50):        
-        cv2.imwrite('mask.png', mask)
+def furthest(mask, scan, pixel_threshold = 50):        
+        cv2.imwrite(f"Init_Mask_scan_{scan}.png", mask)
         img = np.asarray(mask).astype('uint8')
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         height, width = img.shape
@@ -33,7 +33,7 @@ def furthest(mask, pixel_threshold = 50):
             # Depicting the  distances graphically
             cv2.circle(one_img, maxDistPt, 5,(255,0,0), -1)
             cv2.circle(one_img, (avg[1], avg[0]), 5, (0, 255, 0), -1)
-            cv2.imwrite(f"mask_{count}.png", one_img)
+            cv2.imwrite(f"scan_{scan}_mask_{count}.png", one_img)
             if(maxPixels < num):
                  returnPt = maxDistPt
                  maxPixels = num

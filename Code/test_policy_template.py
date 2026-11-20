@@ -375,7 +375,7 @@ class GapFlyer(Policy):
         ######## END TODO ########
         self.fpv = FpvRecorder() if record_fpv else None
         self.target = None
-        self.safety_dist = .5
+        self.safety_dist = .2
         self.reset()
 
     def reset(self):
@@ -439,14 +439,14 @@ class GapFlyer(Policy):
         return det
         ######## END TODO ########
 
-    def locate(self, det, state):
+    def locate(self, det, state, scan = 0):
         """Detection -> where the gap's centre is in the world, or None."""
         ######## TODO - WHERE IS THE GAP ########
         try:
             w = self.det["wall"]
             depth = w["wall_z_m"]
             mask = det["mask"]
-            pt = furthest(mask)
+            pt = furthest(mask, scan)
             cam_points = pixel_to_camera(pt[0], pt[1], depth, self.K)
             world_point = camera_to_world(cam_points, state)
             return world_point
@@ -553,10 +553,10 @@ class GapFlyer(Policy):
                 #Assign target based on self.det
                 #Move to a point self.safety_dist away from target based on normal. 
                 self.target = self.locate(self.det, state)
-                self.log(state, f"Target before safety_dist: {self.target}")
+                #self.log(state, f"Target before safety_dist: {self.target}")
                 normal_vec = self.det["wall"]["normal_cam"]
-                self.log(state, f"Normal Vec: {camera_to_world_dir(normal_vec, state.yaw_rad)}")
-                normal_vec = camera_to_world_dir(normal_vec)
+                #self.log(state, f"Normal Vec: {camera_to_world_dir(normal_vec, state.yaw_rad)}")
+                normal_vec = camera_to_world_dir(normal_vec, state.yaw_rad)
                 self.target = np.add(np.multiply(normal_vec, self.safety_dist), self.target)
                 self.log(state, f"Target: {self.target}")
 
@@ -569,14 +569,67 @@ class GapFlyer(Policy):
                     self.mode = "align"
                     self.ctrl.reset()
                     self.log(state, "->align")
+                    self.move_hold = np.array(state.position_m, float)
 
             else:
                 v_world = self.velocity_to(self.move_hold, state)
-            if self.move_hold is None:
-                self.move_hold = np.array(state.position_m, float)
-            
-        ######## END TODO ########
 
+        if(self.mode == "align"):
+            des_angle = self.det["wall"]["normal_vs_axis"]
+            self.log(state, f"Desired angle: {des_angle}")
+            diff =  wrap_pi(des_angle - state.yaw_rad)
+            if(abs(diff) < 1e-3):
+                self.log(state, "mode -> scan again")
+                self.mode = "scan_again"
+                yaw_rate = 0
+            else:
+                yaw_rate = .01
+                self.log(state, f"Rotating... current yaw: {state.yaw_rad}")
+            
+        if(self.mode == "scan_again"):
+            normal_vec = self.det["wall"]["normal_cam"]
+            if self.sway is None:
+                self.start_sway(state)
+            v_world, finished = self.sway_step(obs.rgb, state)
+            if finished:
+                self.det = self.find_gap()
+                if self.det is not None:
+                    w = self.det["wall"]
+                    self.log(state, "gap: %d frames, wall Z %.2f m, normal %.1f deg off axis, floor "
+                                "rejected %d, gap %.1f%% of image, %d instances, %.0f ms"
+                                % (len(self.det["frames"]), w["wall_z_m"], w["normal_vs_axis_deg"],
+                                w["floor_rejected"], 100.0 * self.det["mask"].mean(),
+                                self.det["n_instances"], self.det["ms"]))
+                self.mode = "commit"
+                self.ctrl.reset()
+                self.log(state, "-> move")
+                #Assign target based on self.det
+                #Move to a point self.safety_dist through  target based on normal. 
+                self.target = self.locate(self.det, state, scan=1)
+                #self.log(state, f"Target before safety_dist: {self.target}")
+                normal_vec = self.det["wall"]["normal_cam"]
+                #self.log(state, f"Normal Vec: {camera_to_world_dir(normal_vec, state.yaw_rad)}")
+                normal_vec = camera_to_world_dir(-normal_vec, state.yaw_rad)
+                self.target = np.add(np.multiply(normal_vec, .5), self.target)
+                self.log(state, f"Target: {self.target}")
+                
+        if(self.mode=="commit"):
+            if(self.target is not None):
+                v_world = self.velocity_to(self.target, state)
+                pos_diff = np.linalg.norm(np.subtract(state.position_m, self.target))
+                if(pos_diff <= 1e-3):
+                    self.mode = "done"
+                    self.log(state, "mode -> done!")
+                    self.ctrl.reset()
+                    self.move_hold = np.array(state.position_m, float)
+            else:
+                v_world = self.velocity_to(self.move_hold, state)
+
+        if(self.mode == "done"):
+            self.move_hold = np.array(state.position_m, float)
+            v_world = self.velocity_to(self.move_hold, state)
+
+        
         if self.fpv is not None:
             self.fpv.add(obs.rgb, mask=None if self.det is None else self.det["mask"], mode=self.mode)
         self.prev = (obs.rgb, np.array(state.position_m, float), float(state.yaw_rad))
