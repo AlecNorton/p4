@@ -33,7 +33,9 @@ Our approach (this file is the starter's policy_template.py with the TODOs fille
           new targets. SEA-RAFT gives the flow reference -> frame, turned into
           inverse depth rho with that frame's own measured translation, and
           stacked. Then find_gap(): median rho -> wall plane -> gap mask.
-  move    placeholder, for AN.
+  move / align / commit: teammate's state machine with reference-frame
+  localization and signed, position-holding alignment fixed. This focused
+  option deliberately keeps the original direct-target move/commit commands.
 
 Third-party code: SEA-RAFT (Wang, Lipson, Deng, ECCV 2024, BSD-3), in Code/searaft.
 """
@@ -391,6 +393,12 @@ class GapFlyer(Policy):
         self.sway_count = 0
         self.det = None             # find_gap's result
         self.move_hold = None
+        self.target = None
+        self.gap_normal = None
+        self.desired_yaw = None
+        self.alignment_t0 = None
+        self.alignment_settled = None
+        self.failure_reason = None
 
     def log(self, state, msg):
         print("%6.2f s  [%s] %s" % (state.t_s, self.mode, msg))
@@ -440,19 +448,56 @@ class GapFlyer(Policy):
         return det
         ######## END TODO ########
 
-    def locate(self, det, state, scan = 0):
-        """Detection -> where the gap's centre is in the world, or None."""
-        ######## TODO - WHERE IS THE GAP ########
-        try:
-            w = self.det["wall"]
-            depth = w["wall_z_m"]
-            mask = det["mask"]
-            pt = furthest(mask, scan)
-            cam_points = pixel_to_camera(pt[0], pt[1], depth, self.K)
-            world_point = camera_to_world(cam_points, state)
-            return world_point
-        except:
+    def locate(self, det, state, scan=0):
+        """Gap pixel -> intersection with the fitted wall in the REFERENCE pose.
+
+        rho = A*u' + B*v' + C is inverse camera-Z depth. Using wall_z_m
+        everywhere assumes a fronto-parallel wall; using the current pose on a
+        reference-frame mask moves the target whenever the drone moves.
+        Returns the centre, or None for unusable geometry. Also stores its
+        fixed world normal and the signed heading toward the panel.
+        """
+        if det is None:
             return None
+        try:
+            mask = np.asarray(det["mask"])
+            if mask.ndim != 2 or mask.shape != (IMG_H, IMG_W):
+                return None
+            pt = furthest(mask, scan)
+            if pt is None:
+                return None
+            plane = np.asarray(det["wall"]["plane"], float)
+            ref_p = np.asarray(det["ref_position_m"], float)
+            ref_yaw = float(det["ref_yaw_rad"])
+            if (plane.shape != (3,) or ref_p.shape != (3,)
+                    or not np.isfinite(plane).all() or not np.isfinite(ref_p).all()
+                    or not np.isfinite(ref_yaw)):
+                return None
+            u, v = float(pt[0]) + 0.5, float(pt[1]) + 0.5
+            rho = float(plane @ [u - self.cx, v - self.cy, 1.0])
+            if rho <= 1e-8:
+                return None
+            p_cam = pixel_to_camera(u, v, 1.0 / rho, self.K)
+            centre = ref_p + camera_to_world_dir(p_cam, ref_yaw)
+            normal_cam = np.array([plane[0] * self.f, plane[1] * self.f, plane[2]])
+            normal = camera_to_world_dir(normal_cam, ref_yaw)
+            length = float(np.linalg.norm(normal))
+            if length <= 1e-8 or not np.isfinite(centre).all():
+                return None
+            normal /= length
+            if np.dot(normal, ref_p - centre) < 0:
+                normal = -normal                # approach stays on the observed side
+            if np.linalg.norm(normal[:2]) < 1e-6:
+                return None                     # yaw cannot align with a horizontal panel
+            current = np.asarray(state.position_m, float)
+            if float(np.dot(normal, current - centre)) <= 0:
+                return None                     # do not plan a crossing from the wrong side
+        except (KeyError, TypeError, ValueError, IndexError, OverflowError):
+            return None
+        self.gap = centre.copy()
+        self.gap_normal = normal.copy()
+        self.desired_yaw = math.atan2(-normal[1], -normal[0])
+        return centre.copy()
 
     # -- control -------------------------------------------------------------
     def velocity_to(self, target_world, state, velocity_ff=(0.0, 0.0, 0.0)):
@@ -540,27 +585,24 @@ class GapFlyer(Policy):
                 self.start_sway(state)
             v_world, finished = self.sway_step(obs.rgb, state)
             if finished:
-                self.det = self.find_gap()
-                if self.det is not None:
-                    w = self.det["wall"]
-                    self.log(state, "gap: %d frames, wall Z %.2f m, normal %.1f deg off axis, floor "
-                             "rejected %d, gap %.1f%% of image, %d instances, %.0f ms"
-                             % (len(self.det["frames"]), w["wall_z_m"], w["normal_vs_axis_deg"],
-                                w["floor_rejected"], 100.0 * self.det["mask"].mean(),
-                                self.det["n_instances"], self.det["ms"]))
-                self.mode = "move"
+                try:
+                    self.det = self.find_gap()
+                except (ValueError, TypeError, np.linalg.LinAlgError) as exc:
+                    self.det = None
+                    self.log(state, "scan has no usable wall: %s" % exc)
+                centre = self.locate(self.det, state)
                 self.ctrl.reset()
-                self.log(state, "-> move")
-                #Assign target based on self.det
-                #Move to a point self.safety_dist away from target based on normal. 
-                self.target = self.locate(self.det, state)
-                #self.log(state, f"Target before safety_dist: {self.target}")
-                normal_vec = self.det["wall"]["normal_cam"]
-                #self.log(state, f"Normal Vec: {camera_to_world_dir(normal_vec, state.yaw_rad)}")
-                normal_vec = camera_to_world_dir(normal_vec, state.yaw_rad)
-                self.target = np.add(np.multiply(normal_vec, self.safety_dist), self.target)
-                self.log(state, f"Target: {self.target}")
                 self.sway = None
+                if centre is None:
+                    self.mode = "hold"
+                    self.failure_reason = "scan has no usable gap/plane intersection"
+                    self.move_hold = np.array(state.position_m, float, copy=True)
+                    v_world = np.zeros(3)
+                    self.log(state, self.failure_reason)
+                else:
+                    self.target = centre + self.safety_dist * self.gap_normal
+                    self.mode = "move"
+                    self.log(state, "-> move; target %s" % np.round(self.target, 3))
 
         if self.mode == "move":
             ### For AN to fill#####
@@ -576,29 +618,41 @@ class GapFlyer(Policy):
             else:
                 v_world = self.velocity_to(self.move_hold, state)
 
-        if(self.mode == "align"):
-            des_angle = self.det["wall"]["normal_vs_axis_deg"]
-            diff =  wrap_pi(des_angle - state.yaw_rad)
-            self.log(state, f"Diff: {diff}")
-
-            if(abs(diff) < 1e-3):
-                '''
-                self.log(state, "mode -> scan again")
-                self.mode = "scan_again"
-                yaw_rate = 0
-                '''
-                normal_vec = self.det["wall"]["normal_cam"]
-                self.mode = "commit"
-                self.log(state, "mode -> commit")
-                #self.log(state, f"Normal Vec: {camera_to_world_dir(normal_vec, state.yaw_rad)}")
-                normal_vec = camera_to_world_dir(-normal_vec, state.yaw_rad)
-                self.target = np.add(np.multiply(normal_vec, .5), self.target)
-                self.log(state, f"Target: {self.target}")
-                yaw_rate = 0
-
+        if self.mode == "align":
+            # locate() already froze the normal in WORLD coordinates using
+            # the image's reference pose. normal_vs_axis_deg is unsigned and
+            # in degrees: it cannot serve as the desired world yaw.
+            if self.alignment_t0 is None:
+                self.alignment_t0 = float(state.t_s)
+                self.alignment_settled = None
+            v_world = self.velocity_to(self.move_hold, state)
+            error = wrap_pi(self.desired_yaw - float(state.yaw_rad))
+            yaw_rate = float(np.clip(2.0 * error, -self.yaw_change_rate,
+                                     self.yaw_change_rate))
+            position_ok = np.linalg.norm(np.asarray(state.position_m) - self.move_hold) <= .03
+            velocity = np.asarray(state.velocity_ms, float)
+            speed_ok = np.isfinite(velocity).all() and np.linalg.norm(velocity) <= .08
+            aligned = abs(error) <= math.radians(2.0) and position_ok and speed_ok
+            if aligned:
+                if self.alignment_settled is None:
+                    self.alignment_settled = float(state.t_s)
             else:
-                yaw_rate = self.yaw_change_rate
-                self.log(state, f"Rotating... current yaw: {state.yaw_rad}")
+                self.alignment_settled = None
+            if self.alignment_settled is not None and state.t_s - self.alignment_settled >= .3:
+                # Exit is 0.5 m beyond the panel. Do not rotate the old camera
+                # normal using the newly reached heading a second time.
+                self.target = self.gap - .5 * self.gap_normal
+                self.ctrl.reset()
+                self.mode = "commit"
+                yaw_rate = 0.0
+                self.log(state, "-> commit; exit %s" % np.round(self.target, 3))
+            elif state.t_s - self.alignment_t0 > 30.0:
+                self.mode = "hold"
+                self.failure_reason = "alignment did not settle before its timeout"
+                self.move_hold = np.array(state.position_m, float, copy=True)
+                self.ctrl.reset()
+                v_world, yaw_rate = np.zeros(3), 0.0
+                self.log(state, self.failure_reason)
         '''
         if(self.mode == "scan_again"):
             normal_vec = self.det["wall"]["normal_cam"]
@@ -639,8 +693,8 @@ class GapFlyer(Policy):
             else:
                 v_world = self.velocity_to(self.move_hold, state)
 
-        if(self.mode == "done"):
-            self.move_hold = np.array(state.position_m, float)
+        if self.mode in ("done", "hold"):
+            # Hold the saved point rather than redefining it every tick.
             v_world = self.velocity_to(self.move_hold, state)
 
         
