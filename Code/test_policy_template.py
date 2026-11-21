@@ -377,6 +377,7 @@ class GapFlyer(Policy):
         self.target = None
         self.safety_dist = .2
         self.yaw_change_rate = .2
+        self.normal_vec = None
         self.reset()
 
     def reset(self):
@@ -448,7 +449,7 @@ class GapFlyer(Policy):
             depth = w["wall_z_m"]
             mask = det["mask"]
             pt = furthest(mask, scan)
-            cam_points = pixel_to_camera(pt[0], pt[1], depth, self.K)
+            cam_points = pixel_to_camera(pt[0]+.5, pt[1]+.5, depth, self.K)
             world_point = camera_to_world(cam_points, state)
             return world_point
         except:
@@ -557,8 +558,9 @@ class GapFlyer(Policy):
                 #self.log(state, f"Target before safety_dist: {self.target}")
                 normal_vec = self.det["wall"]["normal_cam"]
                 #self.log(state, f"Normal Vec: {camera_to_world_dir(normal_vec, state.yaw_rad)}")
-                normal_vec = camera_to_world_dir(normal_vec, state.yaw_rad)
-                self.target = np.add(np.multiply(normal_vec, self.safety_dist), self.target)
+                self.normal_vec = camera_to_world_dir(normal_vec, state.yaw_rad)
+                self.target = np.add(np.multiply(self.normal_vec, self.safety_dist), self.target)
+                self.desired_yaw = math.atan2(-self.normal_vec[1], -self.normal_vec[0])
                 self.log(state, f"Target: {self.target}")
                 self.sway = None
 
@@ -577,27 +579,25 @@ class GapFlyer(Policy):
                 v_world = self.velocity_to(self.move_hold, state)
 
         if(self.mode == "align"):
-            des_angle = self.det["wall"]["normal_vs_axis_deg"]
-            diff =  wrap_pi(des_angle - state.yaw_rad)
+            diff =  wrap_pi(self.desired_yaw - state.yaw_rad)
             self.log(state, f"Diff: {diff}")
-
-            if(abs(diff) < 1e-3):
+            yaw_rate = float(np.clip(self.Kp * diff, -self.yaw_change_rate, self.yaw_change_rate))
+            v_world = self.velocity_to(self.move_hold, state)
+            
+            if(abs(diff) < math.radians(2.0)):
                 '''
                 self.log(state, "mode -> scan again")
                 self.mode = "scan_again"
                 yaw_rate = 0
                 '''
-                normal_vec = self.det["wall"]["normal_cam"]
                 self.mode = "commit"
                 self.log(state, "mode -> commit")
                 #self.log(state, f"Normal Vec: {camera_to_world_dir(normal_vec, state.yaw_rad)}")
-                normal_vec = camera_to_world_dir(-normal_vec, state.yaw_rad)
-                self.target = np.add(np.multiply(normal_vec, .5), self.target)
+                self.target = np.add(np.multiply(-normal_vec, .5), self.target)
                 self.log(state, f"Target: {self.target}")
                 yaw_rate = 0
 
             else:
-                yaw_rate = self.yaw_change_rate
                 self.log(state, f"Rotating... current yaw: {state.yaw_rad}")
         '''
         if(self.mode == "scan_again"):
