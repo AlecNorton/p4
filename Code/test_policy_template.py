@@ -375,9 +375,10 @@ class GapFlyer(Policy):
         ######## END TODO ########
         self.fpv = FpvRecorder() if record_fpv else None
         self.target = None
-        self.safety_dist = .2
-        self.yaw_change_rate = .2
+        self.safety_dist = .52
+        self.yaw_change_rate = 1
         self.normal_vec = None
+        self.Kp = 2.0
         self.reset()
 
     def reset(self):
@@ -584,7 +585,7 @@ class GapFlyer(Policy):
             yaw_rate = float(np.clip(self.Kp * diff, -self.yaw_change_rate, self.yaw_change_rate))
             v_world = self.velocity_to(self.move_hold, state)
             
-            if(abs(diff) < math.radians(2.0)):
+            if(abs(diff) < math.radians(1.0)):
                 '''
                 self.log(state, "mode -> scan again")
                 self.mode = "scan_again"
@@ -593,7 +594,7 @@ class GapFlyer(Policy):
                 self.mode = "commit"
                 self.log(state, "mode -> commit")
                 #self.log(state, f"Normal Vec: {camera_to_world_dir(normal_vec, state.yaw_rad)}")
-                self.target = np.add(np.multiply(-normal_vec, .5), self.target)
+                self.target = np.add(np.multiply(-self.normal_vec, self.safety_dist+.5), self.target)
                 self.log(state, f"Target: {self.target}")
                 yaw_rate = 0
 
